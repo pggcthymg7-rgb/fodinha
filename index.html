@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Marcador de Fodinha</title>
+<meta name="description" content="Marcador de palpites e pontos do Fodinha, com placar colorido, histórico e manual.">
+<meta name="theme-color" content="#f1f4f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1118" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fodinha">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Reset do app web */
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+</style>
+<style>
+/* Layout: no celular, uma coluna com navegação fixa embaixo. Em telas largas, placar à esquerda e rodada à direita.
+   A cor dos nomes segue a escala dos pontos: azul em 0, âmbar em 5, laranja em 8, vermelho em 10. */
+:root{
+  --bg:#f1f4f8; --surface:#ffffff; --sunken:#e7ecf3; --line:#d3dae5;
+  --ink:#141a24; --ink-2:#4e586a; --ink-3:#77839a;
+  --btn-bg:#141a24; --btn-fg:#ffffff; --focus:#2d6af0;
+  --hs:85%; --hl:34%; --ts:75%; --tl:93%; --seg-l:52%;
+  --shadow:0 1px 2px rgba(20,26,36,.06),0 6px 18px rgba(20,26,36,.05);
+  --display:'Big Shoulders Display','Barlow Condensed','Arial Narrow',sans-serif;
+  --body:'Schibsted Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1118; --surface:#161c27; --sunken:#1f2735; --line:#2c3649;
+    --ink:#edf0f6; --ink-2:#a3aec2; --ink-3:#75819b; --btn-bg:#edf0f6; --btn-fg:#0d1118; --focus:#7ca3ff;
+    --hs:88%; --hl:68%; --ts:42%; --tl:19%; --seg-l:58%; --shadow:0 1px 2px rgba(0,0,0,.4);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1118; --surface:#161c27; --sunken:#1f2735; --line:#2c3649;
+  --ink:#edf0f6; --ink-2:#a3aec2; --ink-3:#75819b; --btn-bg:#edf0f6; --btn-fg:#0d1118; --focus:#7ca3ff;
+  --hs:88%; --hl:68%; --ts:42%; --tl:19%; --seg-l:58%; --shadow:0 1px 2px rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 108px}
+h1,h2,h3,p,ol,ul{margin:0}
+ol,ul{padding:0;list-style:none}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1040px;margin:0 auto}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+
+/* Cabeçalho */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:4px 16px}
+.top h1{font-family:var(--display);font-weight:800;font-size:40px;line-height:.9;letter-spacing:.03em;text-transform:uppercase}
+.top .sub{margin-top:6px;color:var(--ink-2);font-size:13px}
+.suits{letter-spacing:.2em;margin-right:6px}
+.suits .r{color:hsl(0 var(--hs) var(--hl))}
+.rd{text-align:right;font-family:var(--display);font-weight:800;font-size:24px;line-height:1}
+.rd small{display:block;margin-top:3px;font:500 13px var(--body);color:var(--ink-2)}
+
+/* Base de cartões */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.cols{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:860px){
+  .cols{grid-template-columns:minmax(0,5fr) minmax(0,6fr);align-items:start}
+  .cols .side{position:sticky;top:16px}
+}
+.stack{display:grid;gap:16px}
+
+/* Botões */
+.btn{appearance:none;border:1px solid transparent;border-radius:12px;padding:0 18px;min-height:48px;font-weight:600;font-size:16px;background:var(--btn-bg);color:var(--btn-fg)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.block{width:100%}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.sm{min-height:40px;padding:0 14px;font-size:14px}
+.btn.confirm{background:hsl(0 var(--ts) var(--tl));color:hsl(0 var(--hs) var(--hl));border-color:hsl(0 var(--hs) var(--hl) / .45)}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+
+/* Etiquetas e chips */
+.tag{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:var(--sunken);color:var(--ink-2);white-space:nowrap}
+.tag.heat,.pv{background:hsl(var(--h) var(--ts) var(--tl));color:hsl(var(--h) var(--hs) var(--hl))}
+.pv{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;font-variant-numeric:tabular-nums}
+
+/* Placar */
+.bh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.bh h2,.rh h2{font-family:var(--display);font-weight:800;letter-spacing:.02em;text-transform:uppercase}
+.bh h2{font-size:28px}
+.board{display:grid}
+.pl{display:grid;grid-template-columns:26px minmax(0,1fr) auto;column-gap:10px;row-gap:6px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.pl:first-child{border-top:0}
+.pl .rk{font-family:var(--display);font-weight:700;font-size:22px;color:var(--ink-3);text-align:center}
+.pl .nm{min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.pl .name{font-weight:700;font-size:19px;line-height:1.2;overflow-wrap:anywhere;color:hsl(var(--h) var(--hs) var(--hl))}
+.pl.out .name{text-decoration:line-through;text-decoration-thickness:2px}
+.pl .pts{display:flex;align-items:baseline;gap:2px;font-family:var(--display);font-variant-numeric:tabular-nums}
+.pl .pts b{font-size:42px;font-weight:800;line-height:.9;color:hsl(var(--h) var(--hs) var(--hl))}
+.pl .pts span{font-size:16px;font-weight:700;color:var(--ink-3)}
+.gauge,.glabels{grid-column:2 / 4;display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
+.gauge i{height:8px;border-radius:2px;background:var(--sunken)}
+.gauge i.on{background:hsl(var(--h) 78% var(--seg-l))}
+.glabels{margin-top:-3px;font-size:11px;line-height:1;color:var(--ink-3);text-align:center}
+
+/* Avisos */
+.alerts{display:grid;gap:8px;margin-bottom:16px}
+.alert{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;padding:12px 16px;border-radius:12px;
+  background:hsl(var(--h) var(--ts) var(--tl));border:1px solid hsl(var(--h) var(--hs) var(--hl) / .4)}
+.alert .big{min-width:52px;text-align:center;font-family:var(--display);font-weight:800;font-size:48px;line-height:.9;color:hsl(var(--h) var(--hs) var(--hl))}
+.alert .t{font-weight:700;font-size:16px;overflow-wrap:anywhere}
+.alert .s{color:var(--ink-2);font-size:14px}
+.alerts .btn{justify-self:start}
+.win{text-align:center;padding:22px 16px}
+.win h2{font-family:var(--display);font-weight:800;font-size:56px;line-height:1;margin:6px 0 4px;color:hsl(var(--h) var(--hs) var(--hl));overflow-wrap:anywhere}
+
+/* Rodada */
+.rh{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rh h2{font-size:38px;line-height:1;margin-top:2px}
+.deal{margin-top:10px;color:var(--ink-2);font-size:14px}
+.deal b{color:var(--ink)}
+.cardsrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:8px 8px 8px 12px;border-radius:10px;background:var(--sunken);font-size:14px;color:var(--ink-2)}
+.cardsrow .cv{min-width:34px;text-align:center;font-family:var(--display);font-weight:800;font-size:26px;color:var(--ink)}
+.stp{display:flex;align-items:center;gap:6px}
+.stp button{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--sunken);font-size:22px;font-weight:600;line-height:1}
+.cardsrow .stp button{background:var(--surface)}
+.stp input{width:54px;height:44px;text-align:center;font-family:var(--display);font-weight:800;font-size:28px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:0;font-variant-numeric:tabular-nums}
+.rlist{margin-top:12px}
+.brow,.mrow{display:grid;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.brow:first-child,.mrow:first-child{border-top:0}
+.brow{grid-template-columns:22px minmax(0,1fr) auto}
+.mrow{grid-template-columns:minmax(0,1fr) auto}
+.ord{font-family:var(--display);font-weight:700;font-size:20px;color:var(--ink-3);text-align:center}
+.bn{font-weight:600;font-size:16px;min-width:0;overflow-wrap:anywhere}
+.bn .tag{margin-left:6px}
+.mrow .info{min-width:0;display:grid;gap:3px}
+.mrow .line2{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:13px;color:var(--ink-2)}
+.mrow .line2 b{color:var(--ink)}
+.sumline{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin:12px 0;padding:10px 12px;border-radius:10px;background:var(--sunken);font-size:14px;color:var(--ink-2)}
+.sumline b{font-family:var(--display);font-size:22px;color:var(--ink)}
+.sumline.bad{background:hsl(40 var(--ts) var(--tl))}
+.warn{margin:0 0 12px;font-size:14px;color:var(--ink-2)}
+details.tool{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:0 12px}
+details.tool summary{display:flex;justify-content:space-between;align-items:center;min-height:46px;font-weight:600;cursor:pointer;list-style:none}
+details.tool summary::-webkit-details-marker{display:none}
+details.tool summary::after{content:"+";font-size:22px;color:var(--ink-2)}
+details.tool[open] summary::after{content:"\2212"}
+details.tool .mtool{padding-bottom:12px}
+
+/* Manilha e cartas */
+.pick{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:8px 0}
+.pick button{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:800 22px var(--display)}
+.pick button[aria-pressed="true"]{background:var(--btn-bg);color:var(--btn-fg);border-color:var(--btn-bg)}
+.pcs{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+.pcw{display:grid;gap:4px;justify-items:center}
+.pcw small{font-size:12px;color:var(--ink-2)}
+.pc{width:62px;height:84px;display:grid;grid-template-rows:auto 1fr;padding:6px 8px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.pc b{font-family:var(--display);font-weight:800;font-size:28px;line-height:1}
+.pc span{align-self:end;justify-self:end;font-size:30px;line-height:1}
+.pc.red{color:hsl(0 var(--hs) var(--hl))}
+.mres p{margin:6px 0}
+@media (min-width:720px){.pick{grid-template-columns:repeat(13,1fr)}}
+
+/* Novo jogo */
+.srow{display:grid;grid-template-columns:22px minmax(0,1fr) 44px;gap:10px;align-items:center;margin-top:8px}
+.nin,.fld{width:100%;height:46px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.x{width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:transparent;font-size:22px;line-height:1}
+.x:disabled{opacity:.35;cursor:not-allowed}
+.field{display:grid;gap:6px;margin-top:16px;font-weight:600}
+.field small{font-weight:400;color:var(--ink-2)}
+.err{margin-top:12px;font-size:14px;font-weight:600;color:hsl(0 var(--hs) var(--hl))}
+.lead{margin:6px 0 12px;color:var(--ink-2);max-width:62ch}
+
+/* Histórico */
+.tablewrap{margin-top:12px;overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table.hist{border-collapse:separate;border-spacing:0;min-width:100%;font-variant-numeric:tabular-nums}
+.hist th,.hist td{padding:10px 12px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+.hist tr:last-child th,.hist tr:last-child td{border-bottom:0}
+.hist .rcol{position:sticky;left:0;z-index:1;text-align:left;background:var(--surface);border-right:1px solid var(--line);min-width:104px}
+.hist .rcol b{font-family:var(--display);font-weight:800;font-size:20px}
+.hist .rcol small{display:block;font-weight:400;font-size:12px;color:var(--ink-2)}
+.hist thead th{font-size:15px}
+.hist thead .hn{font-weight:700;color:hsl(var(--h) var(--hs) var(--hl))}
+.hist .hn.out{text-decoration:line-through}
+.hist .pf{font-family:var(--display);font-weight:800;font-size:22px;line-height:1}
+.hist .pf span{margin:0 3px;color:var(--ink-3);font-weight:700}
+.hist .na{color:var(--ink-3)}
+.hist tfoot th,.hist tfoot td{background:var(--sunken);border-bottom:0}
+.hist tfoot .tt{font-family:var(--display);font-weight:800;font-size:28px;line-height:1;color:hsl(var(--h) var(--hs) var(--hl))}
+.hist tr.live td,.hist tr.live th{background:var(--sunken)}
+.empty h2,.pg h2{font-family:var(--display);font-weight:800;font-size:30px;text-transform:uppercase;letter-spacing:.02em}
+
+/* Manual */
+.manual{display:grid;gap:16px}
+.prose{max-width:760px}
+.prose h2{font-family:var(--display);font-weight:800;font-size:32px;line-height:1;margin:4px 0 10px}
+.prose h3{font-size:16px;margin:18px 0 4px}
+.prose p{margin:8px 0;max-width:66ch}
+.steps{margin:8px 0}
+.steps li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:7px 0}
+.steps{counter-reset:s}
+.steps li{counter-increment:s}
+.steps li::before{content:counter(s);font-family:var(--display);font-weight:800;font-size:24px;line-height:1;color:var(--ink-3)}
+.ladder{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:12px 0}
+.ladder li{padding:6px 0 5px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.ladder b{display:block;font-family:var(--display);font-weight:800;font-size:26px;line-height:1}
+.ladder small{display:block;margin-top:2px;font-size:11px;color:var(--ink-3)}
+@media (min-width:720px){.ladder{grid-template-columns:repeat(13,1fr)}}
+.formula{margin:10px 0;padding:12px 14px;border-radius:10px;background:var(--sunken);font-family:var(--display);font-weight:700;font-size:24px;line-height:1.15}
+table.ex{border-collapse:collapse;margin:10px 0;font-variant-numeric:tabular-nums}
+.ex th,.ex td{padding:8px 16px 8px 0;text-align:left;border-bottom:1px solid var(--line)}
+.ex th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.scale{display:grid;grid-template-columns:repeat(11,1fr);gap:3px;margin:12px 0}
+.scale li{display:grid;gap:4px;text-align:center;font-size:11px;color:var(--ink-2)}
+.scale i{height:30px;border-radius:4px;background:hsl(var(--h) 78% var(--seg-l))}
+.legend li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:center;padding:6px 0}
+.legend b{font-family:var(--display);font-weight:800;font-size:30px;line-height:1;color:hsl(var(--h) var(--hs) var(--hl))}
+
+/* Navegação inferior */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;
+  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  background:var(--surface);border-top:1px solid var(--line)}
+.nav .in{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%;max-width:520px}
+.nav button{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:52px;padding:6px 4px;border:0;border-radius:12px;background:transparent;color:var(--ink-2);font-size:12px;font-weight:600}
+.nav button[aria-current="page"]{background:var(--sunken);color:var(--ink)}
+.nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Fodinha</h1>
+      <p class="sub"><span class="suits" aria-hidden="true">&#9827;&#xFE0E; <span class="r">&#9829;&#xFE0E;</span> &#9824;&#xFE0E; <span class="r">&#9830;&#xFE0E;</span></span>Marcador de pontos</p>
+    </div>
+    <div class="rd" id="meta"></div>
+  </header>
+  <main id="v-jogo"></main>
+  <main id="v-hist" hidden></main>
+  <main id="v-manual" hidden></main>
+</div>
+
+<nav class="nav" aria-label="Seções">
+  <div class="in">
+    <button type="button" data-act="tab" data-tab="jogo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>Jogo</button>
+    <button type="button" data-act="tab" data-tab="historico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Histórico</button>
+    <button type="button" data-act="tab" data-tab="manual"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10 5 7 4.6 4 5v13c3-.4 6 0 8 1.5 2-1.5 5-1.9 8-1.5V5c-3-.4-6 0-8 1.5ZM12 6.5V19.5"/></svg>Manual</button>
+  </div>
+</nav>
+
+<script>
+(function(){
+'use strict';
+var KEY='fodinha-v1';
+var UI={tab:'jogo',mismatch:false,confirm:null,ct:null,vira:null,viraM:'A',mopen:false};
+
+function fresh(names,deck){
+  return {v:1,phase:'setup',deck:deck||53,names:names||['','','','','',''],firstDealer:0,dealerSeat:0,players:[],rounds:[],current:null,ackRound:0};
+}
+function load(){
+  try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o&&o.v===1&&o.players&&o.rounds&&o.names)return o;}}catch(e){}
+  return null;
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+var S=load()||fresh();
+
+/*LOGIC*/
+var LIMIT=10;
+var RANKS=['4','5','6','7','8','9','10','Q','J','K','A','2','3'];
+var SUITS=[{k:'paus',g:'♣︎',red:false},{k:'copas',g:'♥︎',red:true},{k:'espadas',g:'♠︎',red:false},{k:'ouros',g:'♦︎',red:true}];
+var HUE_STOPS=[[0,217],[5,48],[8,20],[10,0]];
+function hue(p){
+  p=Math.max(0,Math.min(LIMIT,p));
+  for(var i=1;i<HUE_STOPS.length;i++){
+    var a=HUE_STOPS[i-1],b=HUE_STOPS[i];
+    if(p<=b[0])return Math.round(a[1]+(b[1]-a[1])*(p-a[0])/(b[0]-a[0]));
+  }
+  return 0;
+}
+function manilhaOf(r){return RANKS[(RANKS.indexOf(r)+1)%RANKS.length];}
+function plural(n,s,p){return n+' '+(n===1?s:p);}
+function nameOf(id){for(var i=0;i<S.players.length;i++)if(S.players[i].id===id)return S.players[i].name;return '?';}
+function totals(){
+  var t={};S.players.forEach(function(p){t[p.id]=0;});
+  S.rounds.forEach(function(r){for(var id in r.pts)t[id]+=r.pts[id];});
+  return t;
+}
+function activeIds(t){return S.players.filter(function(p){return t[p.id]<LIMIT;}).map(function(p){return p.id;});}
+function maxCards(count){return Math.max(1,Math.floor((S.deck-1)/count));}
+function nextActive(prev,act){
+  var seats=S.players.map(function(p){return p.id;}),i=seats.indexOf(prev);
+  for(var k=1;k<=seats.length;k++){var id=seats[(i+k)%seats.length];if(act.indexOf(id)>-1)return id;}
+  return act[0];
+}
+function orderFrom(dealer,act){
+  var seats=S.players.map(function(p){return p.id;}),i=seats.indexOf(dealer),out=[];
+  for(var k=1;k<=seats.length;k++){var id=seats[(i+k)%seats.length];if(act.indexOf(id)>-1)out.push(id);}
+  return out;
+}
+function buildRound(){
+  var t=totals(),act=activeIds(t);
+  if(act.length<=1)return null;
+  var prev=S.rounds.length?S.rounds[S.rounds.length-1]:null;
+  var dealer=prev?nextActive(prev.dealer,act):S.players[S.dealerSeat].id;
+  var n=1;
+  if(prev){n=prev.n+1;if(n>maxCards(act.length))n=1;}
+  return {n:n,dealer:dealer,order:orderFrom(dealer,act),phase:'bids',bids:{},made:{}};
+}
+function scoreCurrent(){
+  var c=S.current,before=totals(),pts={};
+  c.order.forEach(function(id){pts[id]=Math.abs(c.bids[id]-c.made[id]);});
+  var round={n:c.n,dealer:c.dealer,order:c.order.slice(),bids:c.bids,made:c.made,pts:pts,events:[]};
+  S.rounds.push(round);
+  var after=totals();
+  c.order.forEach(function(id){
+    var b=before[id],a=after[id],kind=null;
+    if(b<LIMIT&&a>=LIMIT)kind='out';else if(b<8&&a>=8)kind='8';else if(b<5&&a>=5)kind='5';
+    if(kind)round.events.push({id:id,name:nameOf(id),kind:kind,total:a});
+  });
+  var rank={out:0,'8':1,'5':2};
+  round.events.sort(function(x,y){return rank[x.kind]-rank[y.kind];});
+  S.current=buildRound();
+  return round;
+}
+function undoLast(){
+  var r=S.rounds.pop();if(!r)return;
+  S.current={n:r.n,dealer:r.dealer,order:r.order.slice(),phase:'play',bids:r.bids,made:r.made};
+  S.ackRound=S.rounds.length;
+}
+/*END*/
+
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function $(id){return document.getElementById(id);}
+function scrollTop(){try{window.scrollTo(0,0);}catch(e){}}
+
+/* ---------- Jogo ---------- */
+function boardHTML(t){
+  var rows=S.players.map(function(p,i){return {p:p,i:i,pts:t[p.id]};});
+  rows.sort(function(a,b){var ao=a.pts>=LIMIT?1:0,bo=b.pts>=LIMIT?1:0;return ao-bo||a.pts-b.pts||a.i-b.i;});
+  var h='<div class="bh"><h2>Placar</h2><span class="muted small">menos pontos, melhor posição</span></div><ol class="board">';
+  rows.forEach(function(r){
+    var out=r.pts>=LIMIT,fill=Math.min(r.pts,LIMIT);
+    var rank=out?'–':1+rows.filter(function(o){return o.pts<r.pts&&o.pts<LIMIT;}).length;
+    var tags='';
+    if(out)tags+='<span class="tag heat">Eliminado</span>';
+    else if(r.pts>=8)tags+='<span class="tag heat">Perigo · 8+</span>';
+    else if(r.pts>=5)tags+='<span class="tag heat">Atenção · 5+</span>';
+    if(S.current&&S.current.dealer===r.p.id&&!out)tags+='<span class="tag">Dá as cartas</span>';
+    var cells='';
+    for(var k=1;k<=LIMIT;k++)cells+='<i'+(k<=fill?' class="on"':'')+' style="--h:'+hue(k)+'"></i>';
+    h+='<li class="pl'+(out?' out':'')+'" style="--h:'+hue(r.pts)+'"><span class="rk">'+rank+'</span>'+
+      '<div class="nm"><span class="name">'+esc(r.p.name)+'</span>'+tags+'</div>'+
+      '<div class="pts"><b>'+r.pts+'</b><span>/10</span></div>'+
+      '<div class="gauge" role="img" aria-label="'+r.pts+' de 10 pontos">'+cells+'</div>'+
+      '<div class="glabels" aria-hidden="true"><span style="grid-column:5">5</span><span style="grid-column:8">8</span><span style="grid-column:10">10</span></div></li>';
+  });
+  return h+'</ol>';
+}
+function alertsHTML(){
+  var last=S.rounds[S.rounds.length-1];
+  if(!last||S.ackRound>=S.rounds.length||!last.events.length)return '';
+  var h='<section class="alerts" role="status" aria-live="polite">';
+  last.events.forEach(function(ev){
+    var left=LIMIT-ev.total,big,title,sub,hh;
+    if(ev.kind==='out'){big='10';hh=0;title=esc(ev.name)+' saiu do jogo';sub='Chegou a '+plural(ev.total,'ponto','pontos')+' e foi eliminado.';}
+    else if(ev.kind==='8'){big='8';hh=hue(8);title=esc(ev.name)+' está com '+plural(ev.total,'ponto','pontos');sub='Zona de perigo. '+(left===1?'Falta 1 ponto':'Faltam '+left+' pontos')+' para sair.';}
+    else{big='5';hh=hue(5);title=esc(ev.name)+' chegou a '+plural(ev.total,'ponto','pontos');sub='Metade do caminho. Faltam '+left+' pontos para sair.';}
+    h+='<div class="alert" style="--h:'+hh+'"><span class="big">'+big+'</span><div><p class="t">'+title+'</p><p class="s">'+sub+'</p></div></div>';
+  });
+  return h+'<button type="button" class="btn ghost sm" data-act="ack">Dispensar avisos</button></section>';
+}
+function overHTML(t){
+  var act=S.players.filter(function(p){return t[p.id]<LIMIT;});
+  var h='<section class="card win">';
+  if(act.length===1){
+    h+='<p class="eyebrow">Fim de jogo</p><h2 style="--h:'+hue(t[act[0].id])+'">'+esc(act[0].name)+'</h2><p class="muted">Foi o último a sobrar, com '+plural(t[act[0].id],'ponto','pontos')+'.</p>';
+  }else{
+    var last=S.rounds[S.rounds.length-1],ids=Object.keys(last.pts),min=Infinity,names=[];
+    ids.forEach(function(id){if(t[id]<min)min=t[id];});
+    ids.forEach(function(id){if(t[id]===min)names.push(nameOf(id));});
+    h+='<p class="eyebrow">Fim de jogo</p><h2 style="--h:'+hue(5)+'">Empate no fim</h2><p class="muted">Os últimos jogadores saíram na mesma rodada. Menor pontuação: '+esc(names.join(', '))+' com '+plural(min,'ponto','pontos')+'. Combinem entre vocês como desempatar.</p>';
+  }
+  return h+'<div class="actions" style="justify-content:center;margin-top:16px">'+confirmBtn('new','Novo jogo','Toque de novo para apagar este jogo','btn')+'</div></section>';
+}
+function confirmBtn(key,label,clabel,cls){
+  var on=UI.confirm===key;
+  return '<button type="button" class="'+cls+(on?' confirm':'')+'" data-act="'+key+'" data-ckey="'+key+'" data-label="'+esc(label)+'" data-clabel="'+esc(clabel)+'">'+esc(on?clabel:label)+'</button>';
+}
+function stepper(k,id,v,name,label){
+  var base=label+' de '+esc(name);
+  return '<div class="stp"><button type="button" data-act="step" data-k="'+k+'" data-id="'+id+'" data-d="-1" aria-label="Diminuir '+base+'">&minus;</button>'+
+    '<input class="sv" id="'+k+'_'+id+'" data-k="'+k+'" data-id="'+id+'" type="text" inputmode="numeric" autocomplete="off" placeholder="&ndash;" value="'+(v==null?'':v)+'" aria-label="'+base.charAt(0).toUpperCase()+base.slice(1)+'">'+
+    '<button type="button" data-act="step" data-k="'+k+'" data-id="'+id+'" data-d="1" aria-label="Aumentar '+base+'">+</button></div>';
+}
+function manilhaRes(sel){
+  if(!sel)return '<p class="muted">Escolha a vira para ver a manilha.</p>';
+  var m=manilhaOf(sel);
+  var cards=SUITS.map(function(s,i){return '<div class="pcw"><div class="pc'+(s.red?' red':'')+'"><b>'+m+'</b><span>'+s.g+'</span></div><small>'+(i+1)+'ª · '+s.k+'</small></div>';}).join('');
+  return '<p>Vira <b>'+sel+'</b>. A manilha é o <b>'+m+'</b>.</p><div class="pcs">'+cards+'</div><p class="muted small">Do naipe mais forte (paus) ao mais fraco (ouros).</p>';
+}
+function toolHTML(sel){
+  var b=RANKS.map(function(r){return '<button type="button" data-act="vira" data-r="'+r+'" aria-pressed="'+(r===sel)+'">'+r+'</button>';}).join('');
+  return '<p class="muted small">Toque na carta que foi virada.</p><div class="pick">'+b+'</div><div class="mres">'+manilhaRes(sel)+'</div>';
+}
+function roundHTML(){
+  var c=S.current,n=S.rounds.length+1;
+  var h='<section class="card"><div class="rh"><div><p class="eyebrow">Rodada '+n+'</p><h2>'+plural(c.n,'carta','cartas')+'</h2></div>';
+  if(c.phase==='play')h+='<button type="button" class="btn ghost sm" data-act="editbids">Editar palpites</button>';
+  h+='</div><p class="deal">Dá as cartas: <b>'+esc(nameOf(c.dealer))+'</b>. Fala primeiro: <b>'+esc(nameOf(c.order[0]))+'</b>.</p>';
+  if(c.phase==='bids'){
+    var mx=maxCards(c.order.length);
+    h+='<div class="cardsrow"><span>Cartas por jogador (máx. '+mx+')</span><div class="stp"><button type="button" data-act="cards" data-d="-1" aria-label="Menos cartas">&minus;</button><span class="cv">'+c.n+'</span><button type="button" data-act="cards" data-d="1" aria-label="Mais cartas">+</button></div></div>';
+    h+='<ol class="rlist">'+c.order.map(function(id,i){
+      return '<li class="brow"><span class="ord">'+(i+1)+'</span><span class="bn">'+esc(nameOf(id))+(id===c.dealer?'<span class="tag">dá</span>':'')+'</span>'+stepper('b',id,c.bids[id],nameOf(id),'palpite')+'</li>';
+    }).join('')+'</ol>';
+    h+='<div class="sumline" id="sumline"><span>Palpites somam <b id="sum">0</b></span><span>Mãos na rodada: <b>'+c.n+'</b></span></div>';
+    h+='<button type="button" class="btn block" id="lock" data-act="lock" disabled>Travar palpites</button>';
+  }else{
+    h+='<ol class="rlist">'+c.order.map(function(id){
+      return '<li class="mrow"><div class="info"><span class="bn">'+esc(nameOf(id))+'</span><span class="line2">palpitou <b>'+c.bids[id]+'</b><span id="pv_'+id+'"></span></span></div>'+stepper('m',id,c.made[id],nameOf(id),'mãos feitas')+'</li>';
+    }).join('')+'</ol>';
+    h+='<div class="sumline" id="sumline"><span>Mãos feitas: <b id="sum">0</b> de <b>'+c.n+'</b></span><span id="summsg"></span></div>';
+    h+='<p class="warn" id="warn" hidden>A soma das mãos feitas não bate com as mãos da rodada. Se foi engano, corrija acima. Se está certo, toque de novo para fechar mesmo assim.</p>';
+    h+='<button type="button" class="btn block" id="close" data-act="close">Fechar rodada</button>';
+  }
+  h+='<details class="tool" id="mdet"'+(UI.mopen?' open':'')+'><summary>Qual é a manilha?</summary><div class="mtool" data-scope="game">'+toolHTML(UI.vira)+'</div></details></section>';
+  return h;
+}
+function actionsHTML(){
+  var h='<div class="actions">';
+  if(S.rounds.length)h+=confirmBtn('undo','Desfazer última rodada','Toque de novo para reabrir a rodada '+S.rounds.length,'btn ghost sm');
+  if(!(S.current===null))h+=confirmBtn('new','Novo jogo','Toque de novo para apagar este jogo','btn ghost sm');
+  return h+'</div>';
+}
+function setupHTML(){
+  var ex=['Ana','Bruno','Carla','Diego','Elisa','Fábio'];
+  var rows=S.names.map(function(n,i){
+    return '<li class="srow"><span class="ord">'+(i+1)+'</span><input class="nin" type="text" data-setup="name" data-i="'+i+'" maxlength="18" autocomplete="off" placeholder="Ex.: '+(ex[i]||'Jogador '+(i+1))+'" value="'+esc(n)+'" aria-label="Nome do jogador '+(i+1)+'"><button type="button" class="x" data-act="rmname" data-i="'+i+'" aria-label="Remover jogador '+(i+1)+'"'+(S.names.length<=2?' disabled':'')+'>&times;</button></li>';
+  }).join('');
+  return '<section class="card" style="max-width:620px"><p class="eyebrow">Novo jogo</p><h2 style="font-family:var(--display);font-weight:800;font-size:34px;line-height:1;margin-top:2px;text-transform:uppercase">Quem vai jogar?</h2>'+
+    '<p class="lead">Um celular fica como marcador central. Ele guarda os palpites e as mãos de cada rodada, soma os pontos e muda a cor de cada nome conforme chega perto dos 10.</p>'+
+    '<p class="small muted">Digite os nomes na ordem em que vocês estão sentados, seguindo o sentido do jogo (para a direita). Quem fica à direita de quem dá as cartas fala primeiro.</p>'+
+    '<ol>'+rows+'</ol>'+
+    '<div class="actions" style="margin-top:12px"><button type="button" class="btn ghost sm" data-act="addname"'+(S.names.length>=10?' disabled':'')+'>Adicionar jogador</button></div>'+
+    '<label class="field">Quem dá as cartas na 1ª rodada<select class="fld" id="fd"></select></label>'+
+    '<label class="field">Cartas no baralho<input class="fld" id="deck" type="text" inputmode="numeric" data-setup="deck" value="'+S.deck+'"><small>52 cartas mais o coringa. A vira usa 1 carta, então o máximo por rodada é (baralho − 1) ÷ jogadores em jogo.</small></label>'+
+    '<p class="err" id="err" role="alert" hidden></p>'+
+    '<button type="button" class="btn block" style="margin-top:16px" data-act="start">Começar jogo</button></section>';
+}
+function refreshDealer(){
+  var sel=$('fd');if(!sel)return;
+  if(S.firstDealer>=S.names.length)S.firstDealer=0;
+  sel.innerHTML=S.names.map(function(n,i){return '<option value="'+i+'"'+(i===S.firstDealer?' selected':'')+'>'+esc(n.trim()||'Jogador '+(i+1))+'</option>';}).join('');
+}
+function renderJogo(){
+  var el=$('v-jogo');
+  if(S.phase==='setup'){el.innerHTML=setupHTML();refreshDealer();return;}
+  var t=totals(),over=S.current===null,h=alertsHTML();
+  if(over)h+=overHTML(t);
+  h+='<div class="cols"><section class="card side">'+boardHTML(t)+'</section><div class="stack">'+(over?'':roundHTML())+actionsHTML()+'</div></div>';
+  el.innerHTML=h;
+  refreshRound();
+}
+function refreshRound(){
+  var c=S.current;if(!c||S.phase!=='game')return;
+  var map=c.phase==='bids'?c.bids:c.made,set=0,sum=0;
+  c.order.forEach(function(id){if(map[id]!=null){set++;sum+=map[id];}});
+  var missing=c.order.length-set;
+  if($('sum'))$('sum').textContent=sum;
+  if(c.phase==='bids'){
+    var lock=$('lock');
+    if(lock){lock.disabled=missing>0;lock.textContent=missing>0?'Faltam '+plural(missing,'palpite','palpites'):'Travar palpites';}
+    return;
+  }
+  var t=totals();
+  c.order.forEach(function(id){
+    var el=$('pv_'+id),m=c.made[id],b=c.bids[id];if(!el)return;
+    if(m==null){el.innerHTML='';return;}
+    var d=Math.abs(b-m),tot=t[id]+d;
+    el.innerHTML=d===0?'<span class="pv" style="--h:'+hue(0)+'">acertou</span>':
+      '<span class="pv" style="--h:'+hue(tot)+'">+'+d+'</span><span>total '+tot+(tot>=LIMIT?' · sai':'')+'</span>';
+  });
+  var bad=missing===0&&sum!==c.n;
+  $('sumline').classList.toggle('bad',bad);
+  $('summsg').textContent=missing>0||!bad?'':(sum<c.n?'falta '+plural(c.n-sum,'mão','mãos'):'passa '+plural(sum-c.n,'mão','mãos'));
+  var btn=$('close');
+  btn.disabled=missing>0;
+  btn.textContent=missing>0?'Faltam '+plural(missing,'valor','valores'):(bad&&UI.mismatch?'Fechar mesmo assim':'Fechar rodada');
+  btn.classList.toggle('confirm',bad&&UI.mismatch);
+  $('warn').hidden=!(bad&&UI.mismatch);
+}
+function refreshConfirm(){
+  var bs=document.querySelectorAll('[data-ckey]');
+  for(var i=0;i<bs.length;i++){
+    var b=bs[i],on=UI.confirm===b.getAttribute('data-ckey');
+    b.textContent=b.getAttribute(on?'data-clabel':'data-label');
+    b.classList.toggle('confirm',on);
+  }
+}
+function confirmAct(key,fn){
+  clearTimeout(UI.ct);
+  if(UI.confirm===key){UI.confirm=null;fn();return;}
+  UI.confirm=key;refreshConfirm();
+  UI.ct=setTimeout(function(){UI.confirm=null;refreshConfirm();},4000);
+}
+function stepVal(k,id,d){
+  var c=S.current;if(!c)return;
+  var map=k==='b'?c.bids:c.made,cur=map[id],v=cur==null?(d>0?1:0):cur+d;
+  v=Math.max(0,Math.min(c.n,v));map[id]=v;
+  var inp=$(k+'_'+id);if(inp)inp.value=String(v);
+  UI.mismatch=false;save();refreshRound();
+}
+function onTyped(inp){
+  var c=S.current;if(!c)return;
+  var map=inp.getAttribute('data-k')==='b'?c.bids:c.made,id=inp.getAttribute('data-id');
+  var raw=inp.value.replace(/\D/g,'').slice(0,2);
+  if(raw===''){map[id]=null;inp.value='';}
+  else{var v=Math.min(parseInt(raw,10),c.n);map[id]=v;inp.value=String(v);}
+  UI.mismatch=false;save();refreshRound();
+}
+function changeCards(d){
+  var c=S.current;if(!c||c.phase!=='bids')return;
+  var n=Math.max(1,Math.min(maxCards(c.order.length),c.n+d));
+  c.n=n;c.order.forEach(function(id){if(c.bids[id]!=null&&c.bids[id]>n)c.bids[id]=n;});
+  save();renderJogo();
+}
+function lockBids(){
+  var c=S.current;if(!c)return;
+  for(var i=0;i<c.order.length;i++)if(c.bids[c.order[i]]==null)return;
+  c.order.forEach(function(id){if(c.made[id]==null)c.made[id]=0;});
+  c.phase='play';UI.mismatch=false;save();renderJogo();
+}
+function closeRound(){
+  var c=S.current;if(!c||c.phase!=='play')return;
+  var sum=0;
+  for(var i=0;i<c.order.length;i++){var m=c.made[c.order[i]];if(m==null)return;sum+=m;}
+  if(sum!==c.n&&!UI.mismatch){UI.mismatch=true;refreshRound();return;}
+  UI.mismatch=false;UI.vira=null;
+  scoreCurrent();save();render();scrollTop();
+}
+function newGame(){S=fresh(S.players.map(function(p){return p.name;}),S.deck);UI.confirm=null;UI.vira=null;save();render();scrollTop();}
+function startGame(){
+  var err=$('err');
+  function fail(m){err.textContent=m;err.hidden=false;}
+  var picked=[];S.names.forEach(function(n,i){var v=n.trim();if(v)picked.push({name:v,i:i});});
+  if(picked.length<2)return fail('Preencha pelo menos 2 nomes.');
+  var seen={};
+  for(var k=0;k<picked.length;k++){var key=picked[k].name.toLowerCase();if(seen[key])return fail('Há dois jogadores chamados "'+picked[k].name+'". Use nomes diferentes.');seen[key]=1;}
+  var deck=parseInt(S.deck,10);
+  if(!deck||deck<picked.length+1)return fail('O baralho precisa ter pelo menos '+(picked.length+1)+' cartas.');
+  S.deck=deck;
+  S.players=picked.map(function(p,idx){return {id:'p'+(idx+1),name:p.name};});
+  var seat=0;picked.forEach(function(p,idx){if(p.i===S.firstDealer)seat=idx;});
+  S.dealerSeat=seat;S.rounds=[];S.ackRound=0;S.phase='game';S.current=buildRound();
+  UI.vira=null;save();render();scrollTop();
+}
+
+/* ---------- Histórico ---------- */
+function renderHist(){
+  var el=$('v-hist'),cur=S.current&&S.current.phase==='play'?S.current:null;
+  if(S.phase!=='game'||(!S.rounds.length&&!cur)){
+    el.innerHTML='<section class="card empty"><h2>Histórico</h2><p class="lead">Nenhuma rodada ainda. Os palpites e as mãos feitas de cada rodada aparecem aqui assim que os palpites são travados.</p></section>';
+    return;
+  }
+  var t=totals(),cum={};
+  S.players.forEach(function(p){cum[p.id]=0;});
+  var h='<section class="pg"><h2>Histórico</h2><p class="muted small">Cada célula mostra palpite → mãos feitas. A etiqueta mostra os pontos tomados.</p><div class="tablewrap"><table class="hist"><thead><tr><th class="rcol" scope="col">Rodada</th>';
+  S.players.forEach(function(p){h+='<th scope="col" style="--h:'+hue(t[p.id])+'"><span class="hn'+(t[p.id]>=LIMIT?' out':'')+'">'+esc(p.name)+'</span></th>';});
+  h+='</tr></thead><tbody>';
+  S.rounds.forEach(function(r,i){
+    h+='<tr><th class="rcol" scope="row"><b>R'+(i+1)+'</b><small>'+plural(r.n,'carta','cartas')+' · dá: '+esc(nameOf(r.dealer))+'</small></th>';
+    S.players.forEach(function(p){
+      var id=p.id;
+      if(!(id in r.pts)){h+='<td class="na">–</td>';return;}
+      cum[id]+=r.pts[id];
+      h+='<td><div class="pf">'+r.bids[id]+'<span>→</span>'+r.made[id]+'</div>'+
+        (r.pts[id]===0?'<span class="pv" style="--h:'+hue(0)+'" title="acertou">✓</span>':'<span class="pv" style="--h:'+hue(cum[id])+'">+'+r.pts[id]+'</span>')+'</td>';
+    });
+    h+='</tr>';
+  });
+  if(cur){
+    h+='<tr class="live"><th class="rcol" scope="row"><b>R'+(S.rounds.length+1)+'</b><small>em andamento</small></th>';
+    S.players.forEach(function(p){
+      h+=cur.bids[p.id]==null?'<td class="na">–</td>':'<td><div class="pf">'+cur.bids[p.id]+'<span>→</span>?</div></td>';
+    });
+    h+='</tr>';
+  }
+  h+='</tbody><tfoot><tr><th class="rcol" scope="row">Total</th>';
+  S.players.forEach(function(p){h+='<td><span class="tt" style="--h:'+hue(t[p.id])+'">'+t[p.id]+'</span></td>';});
+  h+='</tr></tfoot></table></div></section>';
+  el.innerHTML=h;
+}
+
+/* ---------- Manual ---------- */
+function renderManual(){
+  var ladder=RANKS.map(function(r,i){return '<li><b>'+r+'</b><small>'+(i+1)+'</small></li>';}).join('');
+  var scale='';for(var i=0;i<=LIMIT;i++)scale+='<li style="--h:'+hue(i)+'"><i></i>'+i+'</li>';
+  $('v-manual').innerHTML='<div class="manual">'+
+  '<section class="card prose"><p class="eyebrow">Regras</p><h2>Como se joga</h2>'+
+  '<p>Em cada rodada você olha suas cartas e diz quantas mãos acha que vai fazer. Depois joga e tenta cumprir exatamente esse número. Quem erra, para mais ou para menos, toma pontos. Quem chegar a 10 pontos sai do jogo, e vence o último que sobrar.</p>'+
+  '<h3>Baralho e jogadores</h3><p>Baralho comum de 52 cartas mais um coringa, 53 no total. O marcador aceita de 2 a 10 jogadores e foi pensado para um grupo de 6.</p>'+
+  '<h3>Passo a passo de uma rodada</h3><ol class="steps">'+
+  '<li><span>Quem dá as cartas distribui a quantidade da rodada para cada jogador.</span></li>'+
+  '<li><span>Vira-se uma carta, a vira. A carta seguinte a ela na ordem de força é a manilha.</span></li>'+
+  '<li><span>Começando por quem está à direita de quem deu, cada um olha suas cartas e diz o palpite. Quem deu as cartas fala por último.</span></li>'+
+  '<li><span>As mãos são jogadas uma a uma. Cada mão fica com quem jogar a carta mais forte.</span></li>'+
+  '<li><span>No fim, cada um compara o palpite com as mãos que fez de verdade. A diferença vira pontos.</span></li></ol>'+
+  '<h3>Quantas cartas por rodada</h3>'+
+  '<p>A rodada 1 tem 1 carta para cada jogador, a rodada 2 tem 2, e assim por diante, sempre uma a mais. Quando o baralho não der para distribuir a mesma quantidade a todos, volta para 1 carta.</p>'+
+  '<p>Com 6 jogadores o máximo é 8 cartas. Com 9 seriam necessárias 55 (6 × 9 mais a vira), mais do que as 53 do baralho. Quando alguém é eliminado sobram cartas, e o máximo sobe.</p>'+
+  '<p>Na rodada de 1 carta o palpite é só 0 (não ganho a mão) ou 1 (ganho a mão).</p></section>'+
+  '<section class="card prose"><p class="eyebrow">Cartas</p><h2>Força das cartas</h2>'+
+  '<p>Da mais fraca para a mais forte: 4, 5, 6, 7, 8, 9, 10, Q, J, K, A, 2, 3. O número pequeno abaixo de cada carta é a posição dela na ordem.</p><ol class="ladder">'+ladder+'</ol>'+
+  '<h3>Manilha</h3><p>A manilha muda a cada rodada. Depois de distribuir, vira-se uma carta, a vira. A manilha é a carta seguinte à vira na ordem de força, e as quatro manilhas ficam acima de todas as outras. Entre elas, o naipe decide: paus, copas, espadas e ouros, do mais forte ao mais fraco.</p>'+
+  '<p>Exemplo: se a vira for A, a manilha é o 2. Se a vira for 3, a ordem recomeça e a manilha é o 4.</p>'+
+  '<div class="mtool" data-scope="manual">'+toolHTML(UI.viraM)+'</div></section>'+
+  '<section class="card prose"><p class="eyebrow">Contagem</p><h2>Como os pontos são contados</h2>'+
+  '<p>Os pontos são tomados pelo erro do palpite. A conta é sempre a mesma:</p><p class="formula">pontos = diferença entre o palpite e as mãos feitas</p>'+
+  '<p>Quem cumpre o palpite não toma ponto, seja ele 0, 2 ou qualquer outro número. Exemplos de uma rodada de 4 cartas:</p>'+
+  '<table class="ex"><thead><tr><th>Palpite</th><th>Fez</th><th>Pontos</th></tr></thead><tbody>'+
+  '<tr><td>2</td><td>0</td><td><span class="pv" style="--h:'+hue(2)+'">2</span></td></tr>'+
+  '<tr><td>2</td><td>4</td><td><span class="pv" style="--h:'+hue(2)+'">2</span></td></tr>'+
+  '<tr><td>2</td><td>2</td><td><span class="pv" style="--h:'+hue(0)+'">0</span></td></tr>'+
+  '<tr><td>0</td><td>0</td><td><span class="pv" style="--h:'+hue(0)+'">0</span></td></tr></tbody></table>'+
+  '<p>Os pontos se acumulam durante o jogo todo.</p></section>'+
+  '<section class="card prose"><p class="eyebrow">Placar</p><h2>Cores e eliminação</h2>'+
+  '<p>Todo mundo começa em azul. A cor do nome muda a cada ponto até chegar ao vermelho.</p><ol class="scale">'+scale+'</ol>'+
+  '<ul class="legend">'+
+  '<li style="--h:'+hue(5)+'"><b>5</b><span>Primeiro aviso. O marcador mostra um alerta quando alguém chega aqui.</span></li>'+
+  '<li style="--h:'+hue(8)+'"><b>8</b><span>Zona de perigo. Novo alerta, faltam 2 pontos ou menos para sair.</span></li>'+
+  '<li style="--h:'+hue(10)+'"><b>10</b><span>Eliminado. O nome fica vermelho e riscado. Ganha o último que sobrar.</span></li></ul></section>'+
+  '<section class="card prose"><p class="eyebrow">Marcador</p><h2>Como usar</h2><ol class="steps">'+
+  '<li><span>Na aba Jogo, escreva os nomes na ordem em que estão sentados e comece o jogo.</span></li>'+
+  '<li><span>A cada rodada, registre o palpite de cada um na ordem em que falam e toque em Travar palpites.</span></li>'+
+  '<li><span>Ao fim das mãos, informe quantas cada um fez e feche a rodada. O marcador calcula os pontos e atualiza o placar.</span></li>'+
+  '<li><span>Errou um registro? Desfazer última rodada reabre a rodada para corrigir.</span></li></ol>'+
+  '<p class="muted small">O jogo fica salvo neste aparelho. Use um único celular como marcador central.</p></section></div>';
+}
+
+/* ---------- Navegação e eventos ---------- */
+function showTab(){
+  var tabs=['jogo','historico','manual'],ids={jogo:'v-jogo',historico:'v-hist',manual:'v-manual'};
+  tabs.forEach(function(k){$(ids[k]).hidden=UI.tab!==k;});
+  var bs=document.querySelectorAll('.nav button');
+  for(var i=0;i<bs.length;i++){if(bs[i].getAttribute('data-tab')===UI.tab)bs[i].setAttribute('aria-current','page');else bs[i].removeAttribute('aria-current');}
+}
+function render(){
+  var m=$('meta');
+  if(S.phase==='game')m.innerHTML=S.current?'Rodada '+(S.rounds.length+1)+'<small>'+plural(S.current.n,'carta','cartas')+'</small>':'Fim de jogo';
+  else m.innerHTML='';
+  renderJogo();renderHist();showTab();
+}
+function hashTab(){
+  var h=(location.hash||'').replace('#','');
+  if(h==='jogo'||h==='historico'||h==='manual'){UI.tab=h;showTab();}
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest?e.target.closest('[data-act]'):null;if(!b)return;
+  var a=b.getAttribute('data-act');
+  if(a==='tab'){UI.tab=b.getAttribute('data-tab');try{location.hash=UI.tab;}catch(x){}showTab();scrollTop();}
+  else if(a==='step')stepVal(b.getAttribute('data-k'),b.getAttribute('data-id'),+b.getAttribute('data-d'));
+  else if(a==='cards')changeCards(+b.getAttribute('data-d'));
+  else if(a==='lock')lockBids();
+  else if(a==='editbids'){S.current.phase='bids';UI.mismatch=false;save();renderJogo();}
+  else if(a==='close')closeRound();
+  else if(a==='ack'){S.ackRound=S.rounds.length;save();renderJogo();}
+  else if(a==='undo')confirmAct('undo',function(){undoLast();save();render();scrollTop();});
+  else if(a==='new')confirmAct('new',newGame);
+  else if(a==='addname'){if(S.names.length<10){S.names.push('');save();renderJogo();var ins=document.querySelectorAll('.nin');if(ins.length)ins[ins.length-1].focus();}}
+  else if(a==='rmname'){if(S.names.length>2){S.names.splice(+b.getAttribute('data-i'),1);save();renderJogo();}}
+  else if(a==='start')startGame();
+  else if(a==='vira'){
+    var box=b.closest('.mtool'),r=b.getAttribute('data-r');
+    if(box.getAttribute('data-scope')==='manual')UI.viraM=r;else UI.vira=r;
+    box.innerHTML=toolHTML(r);
+  }
+});
+document.addEventListener('input',function(e){
+  var t=e.target;
+  if(t.classList&&t.classList.contains('sv'))onTyped(t);
+  else if(t.getAttribute&&t.getAttribute('data-setup')){
+    var w=t.getAttribute('data-setup');
+    if(w==='name'){S.names[+t.getAttribute('data-i')]=t.value;refreshDealer();}
+    else{var v=parseInt(t.value.replace(/\D/g,''),10);S.deck=isNaN(v)?'':v;}
+    save();
+  }
+});
+document.addEventListener('change',function(e){if(e.target.id==='fd'){S.firstDealer=+e.target.value;save();}});
+document.addEventListener('toggle',function(e){if(e.target.id==='mdet')UI.mopen=e.target.open;},true);
+window.addEventListener('hashchange',hashTab);
+
+renderManual();
+hashTab();
+render();
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
+}
+</script>
+</body>
+</html>
